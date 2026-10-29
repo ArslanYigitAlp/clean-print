@@ -1,23 +1,23 @@
-// Clean Print – sayfa anlık görüntüsü (içerik scripti; executeScript ile çalışır, son ifade sonuç olarak döner).
-// Çıktı: { title, url, html (dondurulmuş gövde), css (hesaplanmış kritik stiller inline), reader (Readability HTML) }
+// Clean Print – page snapshot (content script run via executeScript; the last expression is the result).
+// Output: { title, url, html (frozen body), bodyStyle, reader (Readability HTML) }
 (() => {
   try {
     const MAX_NODES = 6000;
     const doc = document;
-    // PDF görüntüleyici / eklenti içerikleri: düzenlenebilir DOM yok
+    // PDF viewer / plugin content: no editable DOM
     if (/pdf/i.test(doc.contentType || "") || (doc.body && doc.body.children.length === 1 && /^(EMBED|OBJECT)$/.test(doc.body.children[0].tagName)))
       return { error: "pdf" };
     const base = doc.baseURI;
 
-    // ---- 1) Readability (okuyucu düzeni) ----
+    // ---- 1) Readability (reader layout) ----
     let reader = null;
     try {
       const clone = doc.cloneNode(true);
       const art = new Readability(clone, { keepClasses: false }).parse();
       if (art && art.content && art.length > 200) reader = { title: art.title, byline: art.byline, content: art.content, siteName: art.siteName };
-    } catch (_) { /* readability başarısız olabilir */ }
+    } catch (_) { /* Readability may fail on some pages */ }
 
-    // ---- 2) Dondurulmuş gövde: DOM klonu + kritik hesaplanmış stiller ----
+    // ---- 2) Frozen body: DOM clone + critical computed styles ----
     const KEEP = ["display", "width", "height",
       "margin-top", "margin-right", "margin-bottom", "margin-left", "padding-top", "padding-right", "padding-bottom", "padding-left",
       "font-family", "font-size", "font-weight", "font-style", "line-height", "color", "background-color", "background-image",
@@ -38,9 +38,9 @@
       if (++count > MAX_NODES) return null;
       const cs = getComputedStyle(src);
       if (cs.display === "none" || cs.visibility === "hidden") return null;
-      // sabit/yapışkan öğeler (çubuklar, çerez uyarıları, sohbet balonları) baskıda istenmez
+      // fixed/sticky elements (bars, cookie banners, chat bubbles) are unwanted in print
       if ((cs.position === "fixed" || cs.position === "sticky") && src !== doc.body) return null;
-      // sayfa iskeleti: gezinme, site başlığı/altbilgisi, yan panel, arama formu, erişilebilirlik atlama bağlantıları
+      // page chrome: navigation, site header/footer, sidebars, search forms, skip links
       const role = (src.getAttribute("role") || "").toLowerCase();
       if (["NAV", "FOOTER", "ASIDE", "FORM", "BUTTON", "DIALOG", "MENU"].includes(src.tagName)) return null;
       if (src.tagName === "HEADER" && !src.closest("article, main, [role=main]")) return null;
@@ -51,13 +51,13 @@
       if (r.width === 0 && r.height === 0 && !["BR", "WBR"].includes(src.tagName) && src.textContent.trim() === "") return null;
 
       const el = doc.createElement(src.tagName === "SVG" || src.namespaceURI === "http://www.w3.org/2000/svg" ? "span" : src.tagName.toLowerCase());
-      if (src.namespaceURI === "http://www.w3.org/2000/svg") { // svg: boyutlu yer tutucu olarak serileştir
+      if (src.namespaceURI === "http://www.w3.org/2000/svg") { // svg: serialize as a sized image
         const s = doc.createElement("img");
         try { s.src = "data:image/svg+xml;utf8," + encodeURIComponent(new XMLSerializer().serializeToString(src)); } catch { return null; }
         s.width = Math.round(r.width); s.height = Math.round(r.height); s.style.cssText = "display:inline-block;vertical-align:middle";
         return s;
       }
-      // güvenli öznitelikler
+      // safe attributes
       if (src.className && typeof src.className === "string") el.setAttribute("class", src.className.trim().split(/\s+/).slice(0, 4).join(" "));
       if (src.id) el.setAttribute("data-id", src.id);
       for (const a of ["href", "src", "alt", "title", "colspan", "rowspan", "type", "value", "checked", "placeholder", "width", "height", "dir", "lang", "start"]) {
@@ -68,18 +68,18 @@
         el.setAttribute("src", s); el.setAttribute("width", Math.round(r.width)); el.setAttribute("height", Math.round(r.height)); el.removeAttribute("srcset");
         el.setAttribute("loading", "eager");
       }
-      if (src.tagName === "INPUT" || src.tagName === "TEXTAREA" || src.tagName === "SELECT") { // form değerlerini metne çevir
+      if (src.tagName === "INPUT" || src.tagName === "TEXTAREA" || src.tagName === "SELECT") { // turn form values into text
         const span = doc.createElement("span"); span.textContent = src.tagName === "SELECT" ? (src.selectedOptions[0]?.text || "") : (src.type === "checkbox" || src.type === "radio" ? (src.checked ? "☑" : "☐") : src.value || src.placeholder || "");
         span.style.cssText = "border:1px solid #999;padding:1px 4px;display:inline-block;min-width:1em"; return span;
       }
       if (src.tagName === "A" && src.href) el.setAttribute("href", src.href);
-      // kritik stiller
+      // critical styles
       const parts = [];
       for (const p of KEEP) {
         const v = cs.getPropertyValue(p);
         if (!v || v === DEFAULTS[p]) continue;
         if (p === "content" && src.tagName !== "Q") continue;
-        if (p === "display") { // ekran düzeni (grid/flex) kâğıda sığmaz: akış düzenine indir
+        if (p === "display") { // screen layouts (grid/flex) don't fit paper: reduce to flow layout
           if (/grid|flex/.test(v)) { parts.push(`display:${v.startsWith("inline") ? "inline-block" : "block"}`); continue; }
           if (v === "inline-block" || v === "inline" || v === "block" || v === "list-item" || v.startsWith("table")) { parts.push(`display:${v}`); }
           continue;
@@ -89,7 +89,7 @@
         if (p === "background-image" && !/url\(/.test(v)) continue;
         if (p === "background-color" && /rgba\(0, 0, 0, 0\)|transparent/.test(v)) continue;
         if (p.startsWith("border-") && /0px/.test(v) && !/radius|collapse|spacing/.test(p)) continue;
-        if (/^(margin|padding)-/.test(p)) { // dev kenar boşlukları (sabit çubuk için ayrılmış alan vb.) baskıda boşluk bırakır
+        if (/^(margin|padding)-/.test(p)) { // huge margins (space reserved for fixed bars etc.) leave gaps in print
           const n = parseFloat(v); if (!n) continue;
           if (Math.abs(n) > 24 && !/^(P|H[1-6]|LI|BLOCKQUOTE|FIGURE|TABLE|UL|OL|DL|PRE)$/.test(src.tagName)) { parts.push(`${p}:24px`); continue; }
           if (n < 0) continue;
@@ -99,7 +99,7 @@
       if (parts.length) el.setAttribute("style", parts.join(";"));
       el.setAttribute("data-cp", String(count));
       for (const child of src.childNodes) { let c = null; try { c = freeze(child); } catch (_) { c = null; } if (c) el.appendChild(c); }
-      // ::before/::after içerik (ikon fontları hariç)
+      // ::before/::after content (icon fonts excluded)
       for (const ps of ["::before", "::after"]) {
         const pcs = getComputedStyle(src, ps); const c = pcs.content;
         if (c && c !== "none" && c !== "normal" && /^"(?:[^"\\]|\\.)*"$/.test(c) && c.length < 80 && !/^"[\uE000-\uF8FF]"/.test(c)) {

@@ -1,13 +1,13 @@
-// Clean Print – editör. Dondurulmuş snapshot üzerinde çalışır; orijinal sayfaya dokunmaz.
+// Clean Print – editor. Works on the frozen snapshot; never touches the original page.
 (() => {
   const $ = (s) => document.querySelector(s);
   const paper = $("#paper"), wrap = $("#paper-wrap"), hl = $("#hl"), hlTag = $("#hlTag");
   let snap = null, mode = "delete", layout = "original";
-  let hover = null, pinned = null; // pinned: klavye ile daraltılmış/genişletilmiş seçim
+  let hover = null, pinned = null; // pinned: selection widened/narrowed with the keyboard
   const undoStack = [], redoStack = [];
   const MAX_UNDO = 100;
 
-  // ---------- yükleme ----------
+  // ---------- loading ----------
   async function load() {
     const key = location.hash.slice(1);
     snap = key ? await chrome.runtime.sendMessage({ type: "getSnapshot", key }) : null;
@@ -45,7 +45,7 @@
   }
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  // ---------- seçim vurgusu ----------
+  // ---------- selection highlight ----------
   function target(e) {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     if (!el || !paper.contains(el) || el === paper) return null;
@@ -88,7 +88,7 @@
   $("#mKeep").addEventListener("click", () => setMode("keep"));
   $("#mEdit").addEventListener("click", () => setMode("edit"));
 
-  // ---------- düzenleme işlemleri (geri alınabilir) ----------
+  // ---------- edit operations (undoable) ----------
   function pushUndo(entry) { undoStack.push(entry); if (undoStack.length > MAX_UNDO) undoStack.shift(); redoStack.length = 0; updateUndo(); }
   function updateUndo() { $("#undo").disabled = !undoStack.length; $("#redo").disabled = !redoStack.length; }
 
@@ -98,7 +98,7 @@
     el.remove(); collapseEmpty(el.parentNode, entry);
     pushUndo(entry); highlight(null); pinned = null; buildFootnotes();
   }
-  // Boşluk sorununun çözümü: silinen öğenin ardında boş kalan kapsayıcıları da kaldır (boş <div>, <section>, <li> …)
+  // Fix for blank gaps: also remove containers left empty after a deletion (empty <div>, <section>, <li> …)
   function collapseEmpty(node, entry) {
     while (node && node !== paper && node.nodeType === 1) {
       const hasContent = node.textContent.trim() !== "" || node.querySelector("img,table,hr,video,canvas,svg");
@@ -115,7 +115,7 @@
       for (const sib of [...parent.childNodes]) { if (sib !== node) { entry.removed.push({ el: sib, parent, next: sib.nextSibling }); sib.remove(); } }
       node = parent;
     }
-    // kapsayıcıların kenar boşlukları/padding'leri baskıda boşluk bırakmasın
+    // strip container margins/padding so they don't leave gaps in print
     node = el.parentElement;
     const styled = [];
     while (node && node !== paper) { styled.push({ el: node, style: node.getAttribute("style") }); node.style.margin = "0"; node.style.padding = "0"; node.style.width = "auto"; node = node.parentElement; }
@@ -151,7 +151,7 @@
   $("#reader").addEventListener("click", () => setLayout("reader"));
   $("#original").addEventListener("click", () => setLayout("original"));
 
-  // ---------- seçenekler ----------
+  // ---------- options ----------
   function applyOptions() {
     const fs = +$("#fs").value; $("#fsv").textContent = fs + "%"; paper.style.fontSize = fs + "%";
     const m = $("#margin").value; wrap.style.padding = m + "mm"; document.documentElement.style.setProperty("--pad", m + "mm");
@@ -181,7 +181,7 @@
     $("#footnotes").hidden = n === 0;
   }
 
-  // ---------- çıktı ----------
+  // ---------- output ----------
   function doPrint() { highlight(null); window.print(); }
   $("#print").addEventListener("click", doPrint);
   $("#saveHtml").addEventListener("click", () => {

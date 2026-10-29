@@ -4,3 +4,9 @@ __pycache__/
 store/*.zip
 .DS_Store
 Thumbs.db
+
+# internal notes / tests live outside the public repo
+test/
+SPEC.md
+store/STORE-LISTING.md
+store/SCREENSHOTS.md

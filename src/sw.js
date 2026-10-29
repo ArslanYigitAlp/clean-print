@@ -1,8 +1,8 @@
-// Clean Print – servis çalışanı. İkon tıklanınca: sayfayı dondur (snapshot) → editör sekmesini aç.
+// Clean Print – service worker. On icon click: freeze the page (snapshot) → open the editor tab.
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id || !/^https?:|^file:/.test(tab.url || "")) return;
-  if (/\.pdf(\?|#|$)/i.test(tab.url || "")) { // Chrome'un PDF görüntüleyicisi script kabul etmez; rozetle uyar
+  if (/\.pdf(\?|#|$)/i.test(tab.url || "")) { // Chrome's PDF viewer does not accept scripts; warn via the badge
     await flashBadge(tab.id, "PDF", "This tab shows a PDF. PDFs are already print-ready: press Ctrl+P here. Clean Print works on web pages.");
     return;
   }
@@ -32,7 +32,7 @@ async function flashBadge(tabId, text, title) {
     await chrome.action.setBadgeText({ tabId, text });
     await chrome.action.setTitle({ tabId, title });
     setTimeout(() => { chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {}); chrome.action.setTitle({ tabId, title: "Clean Print: edit this page for printing" }).catch(() => {}); }, 6000);
-  } catch { /* sekme kapanmış olabilir */ }
+  } catch { /* tab may have been closed */ }
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
