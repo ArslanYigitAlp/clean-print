@@ -29,7 +29,7 @@
     paper.classList.toggle("reader", l === "reader");
     if (l === "reader" && snap.reader) {
       paper.removeAttribute("style");
-      paper.innerHTML = `<h1>${esc(snap.reader.title || snap.title)}</h1>${snap.reader.byline ? `<div class="byline">${esc(snap.reader.byline)}</div>` : ""}${snap.reader.content}`;
+      paper.innerHTML = snap.reader.source === "recipe" ? snap.reader.content : `<h1>${esc(snap.reader.title || snap.title)}</h1>${snap.reader.byline ? `<div class="byline">${esc(snap.reader.byline)}</div>` : ""}${snap.reader.content}`;
     } else {
       paper.setAttribute("style", snap.bodyStyle || "");
       paper.innerHTML = snap.html;

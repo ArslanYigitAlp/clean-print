@@ -2,19 +2,67 @@
 // Output: { title, url, html (frozen body), bodyStyle, reader (Readability HTML) }
 (() => {
   try {
-    const MAX_NODES = 6000;
+    const MAX_NODES = 15000;
     const doc = document;
     // PDF viewer / plugin content: no editable DOM
     if (/pdf/i.test(doc.contentType || "") || (doc.body && doc.body.children.length === 1 && /^(EMBED|OBJECT)$/.test(doc.body.children[0].tagName)))
       return { error: "pdf" };
     const base = doc.baseURI;
 
-    // ---- 1) Readability (reader layout) ----
+    // ---- 0) schema.org Recipe (JSON-LD): exact ingredients + steps, better than Readability on recipe sites ----
     let reader = null;
+    const escHtml = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const stripTags = (t) => String(t ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const findRecipe = () => {
+      for (const sc of doc.querySelectorAll('script[type="application/ld+json"]')) {
+        let data; try { data = JSON.parse(sc.textContent); } catch { continue; }
+        const stack = Array.isArray(data) ? [...data] : [data];
+        while (stack.length) {
+          const n = stack.shift(); if (!n || typeof n !== "object") continue;
+          const t = [].concat(n["@type"] || []); if (t.includes("Recipe")) return n;
+          if (n["@graph"]) stack.push(...n["@graph"]); if (n.mainEntity) stack.push(n.mainEntity);
+        }
+      }
+      return null;
+    };
+    const fmtDur = (d) => { const m = /^PT(?:(\d+)H)?(?:(\d+)M)?/.exec(d || ""); if (!m) return ""; const h = +m[1] || 0, mi = +m[2] || 0; return (h ? h + " h " : "") + (mi ? mi + " min" : "") || d; };
+    try {
+      const r = findRecipe();
+      if (r && (r.recipeIngredient || r.recipeInstructions)) {
+        const name = r.name || doc.title;
+        const img = Array.isArray(r.image) ? r.image[0] : (r.image && r.image.url) || r.image;
+        const meta = [];
+        if (r.recipeYield) meta.push("Yield: " + escHtml([].concat(r.recipeYield)[0]));
+        if (r.prepTime) meta.push("Prep: " + fmtDur(r.prepTime));
+        if (r.cookTime) meta.push("Cook: " + fmtDur(r.cookTime));
+        if (r.totalTime) meta.push("Total: " + fmtDur(r.totalTime));
+        const steps = [];
+        const walkSteps = (x) => { for (const st of [].concat(x || [])) { if (typeof st === "string") steps.push({ text: stripTags(st) }); else if (st && st["@type"] === "HowToSection") { steps.push({ section: st.name }); walkSteps(st.itemListElement); } else if (st) steps.push({ text: stripTags(st.text || st.name || ""), img: Array.isArray(st.image) ? st.image[0] : (st.image && st.image.url) || st.image }); } };
+        walkSteps(r.recipeInstructions);
+        let html = `<h1>${escHtml(name)}</h1>`;
+        if (r.author) html += `<div class="byline">${escHtml([].concat(r.author).map((a) => a.name || a).join(", "))}</div>`;
+        if (img && typeof img === "string") html += `<figure><img src="${escHtml(img)}" alt=""></figure>`;
+        if (r.description) html += `<p>${escHtml(stripTags(r.description))}</p>`;
+        if (meta.length) html += `<p class="recipe-meta">${meta.join(" · ")}</p>`;
+        if (r.recipeIngredient) html += `<h2>Ingredients</h2><ul>${[].concat(r.recipeIngredient).map((i) => `<li>${escHtml(stripTags(i))}</li>`).join("")}</ul>`;
+        if (steps.length) {
+          html += `<h2>Instructions</h2>`; let open = false;
+          for (const st of steps) {
+            if (st.section) { if (open) html += "</ol>"; html += `<h3>${escHtml(st.section)}</h3><ol>`; open = true; continue; }
+            if (!open) { html += "<ol>"; open = true; }
+            html += `<li>${escHtml(st.text)}${st.img && typeof st.img === "string" ? `<br><img src="${escHtml(st.img)}" alt="" style="max-width:320px">` : ""}</li>`;
+          }
+          if (open) html += "</ol>";
+        }
+        reader = { title: name, byline: "", content: html, siteName: "", source: "recipe" };
+      }
+    } catch (_) { /* fall through to Readability */ }
+
+    // ---- 1) Readability (reader layout) ----
     try {
       const clone = doc.cloneNode(true);
       const art = new Readability(clone, { keepClasses: false }).parse();
-      if (art && art.content && art.length > 200) reader = { title: art.title, byline: art.byline, content: art.content, siteName: art.siteName };
+      if (!reader && art && art.content && art.length > 200) reader = { title: art.title, byline: art.byline, content: art.content, siteName: art.siteName };
     } catch (_) { /* Readability may fail on some pages */ }
 
     // ---- 2) Frozen body: DOM clone + critical computed styles ----
@@ -35,9 +83,9 @@
       if (src.nodeType === Node.TEXT_NODE) return doc.createTextNode(src.nodeValue);
       if (src.nodeType !== Node.ELEMENT_NODE) return null;
       if (skipTag.has(src.tagName)) return null;
-      if (++count > MAX_NODES) return null;
       const cs = getComputedStyle(src);
       if (cs.display === "none" || cs.visibility === "hidden") return null;
+      if (++count > MAX_NODES) return null; // count only nodes we keep
       // fixed/sticky elements (bars, cookie banners, chat bubbles) are unwanted in print
       if ((cs.position === "fixed" || cs.position === "sticky") && src !== doc.body) return null;
       // page chrome: navigation, site header/footer, sidebars, search forms, skip links
@@ -64,7 +112,12 @@
         if (src.hasAttribute(a)) el.setAttribute(a, a === "href" || a === "src" ? abs(src.getAttribute(a)) : src.getAttribute(a));
       }
       if (src.tagName === "IMG") {
-        const s = src.currentSrc || src.src; if (!s || s.startsWith("data:image/gif")) return null;
+        let s = src.currentSrc || src.src;
+        if (!s || /^data:image\/(gif|svg)/.test(s) || /blank|placeholder|1x1|spacer/i.test(s)) { // lazy-loaded: look for the real source
+          const lazy = src.getAttribute("data-src") || src.getAttribute("data-lazy-src") || src.getAttribute("data-original") || (src.getAttribute("data-srcset") || src.getAttribute("srcset") || "").split(",").pop().trim().split(" ")[0];
+          if (lazy) s = abs(lazy);
+        }
+        if (!s || s.startsWith("data:image/gif")) return null;
         el.setAttribute("src", s); el.setAttribute("width", Math.round(r.width)); el.setAttribute("height", Math.round(r.height)); el.removeAttribute("srcset");
         el.setAttribute("loading", "eager");
       }
