@@ -149,6 +149,7 @@ def main():
         ed.check("#noBg"); ed.wait_for_timeout(50)
         check("remove backgrounds clears paper bg", ed.evaluate("()=>getComputedStyle(document.querySelector('#paper')).backgroundColor") == "rgba(0, 0, 0, 0)", ed.evaluate("()=>getComputedStyle(document.querySelector('#paper')).backgroundColor"))
         check("remove backgrounds clears inner bg", ed.evaluate("()=>getComputedStyle(document.querySelector('#paper main')).backgroundColor") == "rgba(0, 0, 0, 0)")
+        check("remove backgrounds darkens light text", ed.evaluate("()=>getComputedStyle(document.querySelector('#paper .share a')).color") == "rgb(26, 13, 171)")
         ed.uncheck("#noBg"); ed.wait_for_timeout(50)
         check("backgrounds restored when unchecked", ed.evaluate("()=>getComputedStyle(document.querySelector('#paper')).backgroundColor") != "rgba(0, 0, 0, 0)")
         ed.click("#resetOpts"); ed.wait_for_timeout(50)

@@ -31,7 +31,8 @@ label select { margin-left: auto; font: inherit; }
 #paper * { max-width: 100% !important; }
 #paper img { height: auto !important; }
 #paper.no-images img { display: none !important; }
-#paper.no-bg * { background: transparent !important; box-shadow: none !important; }
+#paper.no-bg * { background: transparent !important; box-shadow: none !important; color: #111 !important; border-color: #999 !important; }
+#paper.no-bg a { color: #1a0dab !important; }
 #paper.no-bg { background: transparent !important; background-image: none !important; }
 #paper.reader { font: 16px/1.6 Georgia, "Times New Roman", serif; max-width: 100%; }
 #paper.reader h1 { font-size: 1.8em; line-height: 1.25; margin: 0 0 .4em; }
