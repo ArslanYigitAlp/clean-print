@@ -1,0 +1,6 @@
+_to_delete/
+__pycache__/
+*.pyc
+store/*.zip
+.DS_Store
+Thumbs.db

@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Clean Print</title>
+  <link rel="icon" href="../icons/icon32.png">
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <aside id="tools">
+    <div class="brand"><img src="../icons/icon32.png" alt="" width="20"><strong>Clean Print</strong></div>
+    <div class="group">
+      <div class="lbl">Mode</div>
+      <button id="mDelete" class="tool on" title="Click an element to remove it (D)">🗑 Delete</button>
+      <button id="mKeep" class="tool" title="Keep only the clicked element (K)">🎯 Keep only</button>
+      <button id="mEdit" class="tool" title="Edit text inline (E)">✎ Edit text</button>
+      <div class="hint">Hover highlights an element; click applies the mode. <b>Delete</b> removes it, <b>Keep only</b> removes everything else. Use ← → on the keyboard to widen/narrow the selection to the parent/child.</div>
+    </div>
+    <div class="group">
+      <div class="lbl">Layout</div>
+      <button id="reader" class="tool">📖 Reader layout</button>
+      <button id="original" class="tool">🧊 Frozen original</button>
+      <label>Font size <input id="fs" type="range" min="70" max="160" value="100"><span id="fsv">100%</span></label>
+      <label>Margins <select id="margin"><option value="10">Narrow</option><option value="18" selected>Normal</option><option value="25">Wide</option></select></label>
+      <label>Paper <select id="paperSize"><option value="A4" selected>A4</option><option value="Letter">Letter</option></select></label>
+      <label><input type="checkbox" id="noImages"> Hide images</label>
+      <label><input type="checkbox" id="noBg" checked> Remove backgrounds</label>
+      <label><input type="checkbox" id="linkFoot"> Links as footnotes</label>
+      <label><input type="checkbox" id="header" checked> Header: title, URL, date</label>
+    </div>
+    <div class="group">
+      <div class="lbl">History</div>
+      <div class="row"><button id="undo" class="tool half" disabled>↶ Undo</button><button id="redo" class="tool half" disabled>↷ Redo</button></div>
+      <button id="reset" class="tool">⟲ Reset edits</button>
+      <button id="resetOpts" class="tool">⚙ Reset settings to defaults</button>
+    </div>
+    <div class="group">
+      <button id="print" class="primary">🖨 Print / Save as PDF</button>
+      <button id="saveHtml" class="tool">⬇ Save as HTML</button>
+      <div class="hint">In the print dialog choose "Save as PDF" as the destination.</div>
+    </div>
+    <div id="meta" class="hint small"></div>
+  </aside>
+
+  <main id="stage">
+    <div id="paper-wrap">
+      <header id="docHeader"><span id="hTitle"></span><span id="hMeta"></span></header>
+      <article id="paper"></article>
+      <footer id="footnotes" hidden><h3>Links</h3><ol id="fnList"></ol></footer>
+    </div>
+  </main>
+
+  <div id="hl"></div>
+  <div id="hlTag"></div>
+
+  <script src="editor.js"></script>
+</body>
+</html>
