@@ -10,7 +10,7 @@ Website: https://arslanyigitalp.github.io/clean-print/ · Privacy policy: https:
 
 ## How it works
 
-1. Click the Clean Print icon (or press `Ctrl+Shift+P`) on any web page.
+1. Click the Clean Print icon (or press `Alt+Shift+P`) on any web page. If the shortcut doesn't work, set one at `chrome://extensions/shortcuts`.
 2. The page is **frozen** into an editable copy and opened in a new tab. The original tab is never modified, so your edits can't be lost when the page refreshes.
 3. Edit, then **Print / Save as PDF**.
 
