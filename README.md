@@ -2,6 +2,8 @@
 
 **Remove ads, menus and clutter before printing. Freeze the page, delete what you don't need, save a clean PDF.**
 
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Install-0f766e)](https://chromewebstore.google.com/detail/jjflkejhfnehgkfddjjajkbcmhienfoo)
+
 A Chrome / Edge extension (Manifest V3). No account, no server — everything happens inside your browser.
 
 Website: https://arslanyigitalp.github.io/clean-print/ · Privacy policy: https://arslanyigitalp.github.io/clean-print/privacy.html
@@ -27,7 +29,7 @@ Website: https://arslanyigitalp.github.io/clean-print/ · Privacy policy: https:
 
 ## Install
 
-From the Chrome Web Store: *coming soon*.
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/jjflkejhfnehgkfddjjajkbcmhienfoo)** (also works on Microsoft Edge).
 
 From source:
 
